@@ -52,4 +52,10 @@
     <EmbeddedResource Include="..\..\schemas\help\**\*.json" LogicalName="schemas/help/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <!-- 针对 Android 平台特殊处理：强制启用 NativeAOT，因为 Android 不支持普通的单文件 AppHost -->
+  <PropertyGroup Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('android-'))">
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishAot>true</PublishAot>
+  </PropertyGroup>
+
 </Project>

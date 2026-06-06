@@ -98,7 +98,7 @@ internal static class WordPdfBackend
     static readonly object MISSING = new();
 
     static T VT<T>(IntPtr p, int slot) where T : Delegate
-        => (T)Marshal.GetDelegateForFunctionPointer(Marshal.ReadIntPtr(Marshal.ReadIntPtr(p), slot * IntPtr.Size), typeof(T));
+        => (T)Marshal.GetDelegateForFunctionPointer<T>(Marshal.ReadIntPtr(Marshal.ReadIntPtr(p), slot * IntPtr.Size));
 
     static IntPtr Hs(string s) { WindowsCreateString(s, (uint)s.Length, out var h); return h; }
 

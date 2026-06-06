@@ -72,4 +72,11 @@
     <Using Remove="Android.Runtime" />
   </ItemGroup>
 
+  <!-- 3. 核心修复：在 C# 编译和 AOT 链接执行前，强行将输出类型重置为 Exe，规避 Android SDK 强制篡改为 Library 的限制 -->
+  <Target Name="ForceAndroidExecutable" BeforeTargets="BeforeCompile;CoreCompile" Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('android-'))">
+    <PropertyGroup>
+      <OutputType>Exe</OutputType>
+    </PropertyGroup>
+  </Target>
+
 </Project>

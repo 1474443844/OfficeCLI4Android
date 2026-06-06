@@ -62,7 +62,7 @@
     <AndroidGenerateImplicitUsings>false</AndroidGenerateImplicitUsings>
   </PropertyGroup>
 
-  <!-- 2. 显式移除 Android 所有可能冲突的隐式 Using 引用（双重保险） -->
+  <!-- 2. 显式移除 Android 所有可能冲突的隐式 Using 引用，并解决链接器符号冲突 -->
   <ItemGroup Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('android-'))">
     <Using Remove="Android.App" />
     <Using Remove="Android.Widget" />
@@ -70,6 +70,9 @@
     <Using Remove="Android.Views" />
     <Using Remove="Android.Content" />
     <Using Remove="Android.Runtime" />
+    
+    <!-- 核心修复：解决 Android NDK 的 libunwind 与 .NET AOT 运行时的符号重复冲突 -->
+    <LinkerArg Include="-Wl,--allow-multiple-definition" />
   </ItemGroup>
 
   <!-- 3. 核心修复：在 C# 编译和 AOT 链接执行前，强行将输出类型重置为 Exe，规避 Android SDK 强制篡改为 Library 的限制 -->

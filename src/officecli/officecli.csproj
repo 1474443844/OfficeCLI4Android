@@ -52,4 +52,11 @@
     <EmbeddedResource Include="..\..\schemas\help\**\*.json" LogicalName="schemas/help/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
+  <!-- 针对 linux-musl 平台特殊处理：启用 NativeAOT 并强制静态链接，使其可以无依赖运行在 Android 等任何 Linux 设备上 -->
+  <PropertyGroup Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('linux-musl-'))">
+    <PublishSingleFile>false</PublishSingleFile>
+    <PublishAot>true</PublishAot>
+    <CustomLinkerUserArgs>-static</CustomLinkerUserArgs>
+  </PropertyGroup>
+
 </Project>

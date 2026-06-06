@@ -12,57 +12,50 @@ permissions:
 jobs:
   build:
     strategy:
-      fail-fast: false
       matrix:
         include:
           - rid: osx-arm64
             name: officecli-mac-arm64
-            bin: officecli-mac-arm64
             os: macos-latest
-
+            extra_args: ""
           - rid: osx-x64
             name: officecli-mac-x64
-            bin: officecli-mac-x64
             os: macos-latest
-
+            extra_args: ""
           - rid: linux-x64
             name: officecli-linux-x64
-            bin: officecli-linux-x64
             os: ubuntu-latest
-
+            extra_args: ""
           - rid: linux-arm64
             name: officecli-linux-arm64
-            bin: officecli-linux-arm64
             os: ubuntu-latest
-
+            extra_args: ""
           - rid: linux-musl-x64
             name: officecli-linux-alpine-x64
-            bin: officecli-linux-alpine-x64
             os: ubuntu-latest
-
+            extra_args: ""
           - rid: linux-musl-arm64
             name: officecli-linux-alpine-arm64
-            bin: officecli-linux-alpine-arm64
             os: ubuntu-latest
-
-          - rid: win-x64
-            name: officecli-win-x64.exe
-            bin: officecli-win-x64.exe
-            os: windows-latest
-
-          - rid: win-arm64
-            name: officecli-win-arm64.exe
-            bin: officecli-win-arm64.exe
-            os: windows-latest
-
-          # Android NativeAOT ELF.
-          # This is not an APK. It is intended to be packaged into an Android app as:
-          # app/src/main/jniLibs/arm64-v8a/libofficecli.so
+            extra_args: ""
+          # Android ARM64 目标 (大多数现代 Android 设备)
           - rid: android-arm64
             name: officecli-android-arm64
-            bin: libofficecli.so
             os: ubuntu-latest
-
+            extra_args: "-p:CppCompilerAndLinker=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android34-clang"
+          # Android x64 目标 (主要用于模拟器)
+          - rid: android-x64
+            name: officecli-android-x64
+            os: ubuntu-latest
+            extra_args: "-p:CppCompilerAndLinker=$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android34-clang"
+          - rid: win-x64
+            name: officecli-win-x64.exe
+            os: windows-latest
+            extra_args: ""
+          - rid: win-arm64
+            name: officecli-win-arm64.exe
+            os: windows-latest
+            extra_args: ""
     runs-on: ${{ matrix.os }}
 
     defaults:
@@ -77,73 +70,27 @@ jobs:
         with:
           dotnet-version: '10.0.x'
 
-      - name: Setup Android SDK
-        if: startsWith(matrix.rid, 'android-')
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android NDK
-        if: startsWith(matrix.rid, 'android-')
-        run: |
-          sdkmanager "ndk;27.2.12479018"
-
+      # 在发布步骤中传入额外的平台特定参数
       - name: Publish
-        if: ${{ !startsWith(matrix.rid, 'android-') }}
         run: |
           dotnet publish src/officecli/officecli.csproj \
             -c Release \
             -r ${{ matrix.rid }} \
             -o publish \
-            --nologo
-
-      - name: Publish Android NativeAOT
-        if: startsWith(matrix.rid, 'android-')
-        env:
-          ANDROID_NDK_ROOT: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
-          ANDROID_NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.2.12479018
-        run: |
-          dotnet publish src/officecli/officecli.csproj \
-            -c Release \
-            -r ${{ matrix.rid }} \
-            -p:PublishAot=true \
-            -p:SelfContained=true \
-            -o publish \
-            --nologo
-
-      - name: List publish output
-        run: |
-          echo "=== publish output ==="
-          find publish -maxdepth 3 -type f -print
+            --nologo \
+            ${{ matrix.extra_args }}
 
       - name: Rename output
         run: |
-          if [[ "${{ matrix.rid }}" == android-* ]]; then
-            if [ -f publish/officecli ]; then
-              mv publish/officecli publish/${{ matrix.bin }}
-            else
-              echo "FAIL: Android NativeAOT output publish/officecli not found"
-              find publish -maxdepth 3 -type f -print
-              exit 1
-            fi
-          elif [ -f publish/officecli.exe ]; then
-            mv publish/officecli.exe publish/${{ matrix.bin }}
-          elif [ -f publish/officecli ]; then
-            mv publish/officecli publish/${{ matrix.bin }}
+          if [ -f publish/officecli.exe ]; then
+            mv publish/officecli.exe publish/${{ matrix.name }}
           else
-            echo "FAIL: output executable not found"
-            find publish -maxdepth 3 -type f -print
-            exit 1
+            mv publish/officecli publish/${{ matrix.name }}
           fi
 
-      - name: Verify Android ELF
-        if: startsWith(matrix.rid, 'android-')
-        run: |
-          file publish/${{ matrix.bin }}
-          chmod +x publish/${{ matrix.bin }}
-
-      - name: Ad-hoc codesign macOS
+      - name: Ad-hoc codesign (macOS)
         if: startsWith(matrix.rid, 'osx-')
-        run: |
-          codesign -s - -f publish/${{ matrix.bin }}
+        run: codesign -s - -f publish/${{ matrix.name }}
 
       - name: Smoke test - create document
         if: >-
@@ -155,17 +102,17 @@ jobs:
           MSYS_NO_PATHCONV: '1'
           MSYS2_ARG_CONV_EXCL: '*'
         run: |
-          chmod +x publish/${{ matrix.bin }}
-          publish/${{ matrix.bin }} create test_smoke.docx
-          publish/${{ matrix.bin }} add test_smoke.docx /body --type paragraph --prop text="Hello from CI"
-          publish/${{ matrix.bin }} get test_smoke.docx '/body/p[1]'
-          publish/${{ matrix.bin }} close test_smoke.docx
+          chmod +x publish/${{ matrix.name }}
+          publish/${{ matrix.name }} create test_smoke.docx
+          publish/${{ matrix.name }} add test_smoke.docx /body --type paragraph --prop text="Hello from CI"
+          publish/${{ matrix.name }} get test_smoke.docx '/body/p[1]'
+          publish/${{ matrix.name }} close test_smoke.docx
           rm -f test_smoke.docx
 
-      - name: Smoke test - .NET 8-only runtime linux-x64
+      - name: Smoke test - .NET 8-only runtime (linux-x64)
         if: matrix.rid == 'linux-x64' && runner.os == 'Linux'
         run: |
-          chmod +x publish/${{ matrix.bin }}
+          chmod +x publish/${{ matrix.name }}
           mkdir -p smoke_net8
           docker run --rm \
             -v "$PWD/publish:/app:ro" \
@@ -173,10 +120,10 @@ jobs:
             -w /work \
             mcr.microsoft.com/dotnet/runtime:8.0 \
             bash -c "set -e; \
-              /app/${{ matrix.bin }} create issue115.docx; \
-              /app/${{ matrix.bin }} add issue115.docx /body --type paragraph --prop text='net8 smoke'; \
-              /app/${{ matrix.bin }} close issue115.docx; \
-              /app/${{ matrix.bin }} view issue115.docx text --json"
+              /app/${{ matrix.name }} create issue115.docx; \
+              /app/${{ matrix.name }} add issue115.docx /body --type paragraph --prop text='net8 smoke'; \
+              /app/${{ matrix.name }} close issue115.docx; \
+              /app/${{ matrix.name }} view issue115.docx text --json"
 
       - name: Smoke test - install
         if: >-
@@ -188,7 +135,7 @@ jobs:
           MSYS_NO_PATHCONV: '1'
           MSYS2_ARG_CONV_EXCL: '*'
         run: |
-          publish/${{ matrix.bin }} install
+          publish/${{ matrix.name }} install
           if [ "$RUNNER_OS" == "Windows" ]; then
             test -f "$LOCALAPPDATA/OfficeCLI/officecli.exe" || { echo "FAIL: officecli.exe not found in %LOCALAPPDATA%\\OfficeCLI"; exit 1; }
             "$LOCALAPPDATA/OfficeCLI/officecli.exe" --version
@@ -222,7 +169,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: ${{ matrix.name }}
-          path: publish/${{ matrix.bin }}
+          path: publish/${{ matrix.name }}
 
   release:
     needs: build
@@ -230,7 +177,6 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
-
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v8
@@ -244,7 +190,7 @@ jobs:
           rm -rf artifacts
           mv flat artifacts
           cd artifacts
-          find . -maxdepth 1 -type f -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS
+          sha256sum officecli-* > SHA256SUMS
           echo "=== SHA256SUMS ==="
           cat SHA256SUMS
 

@@ -50,10 +50,40 @@ jobs:
 
       - name: Rename output
         run: |
-          if [ -f publish/officecli.exe ]; then
-            mv publish/officecli.exe publish/${{ matrix.name }}
+          TARGET_NAME="${{ matrix.name }}"
+          
+          # 定义可能生成的候选路径列表
+          CANDIDATES=(
+            "publish/officecli"
+            "publish/officecli.so"
+            "publish/libofficecli.so"
+            "src/officecli/bin/Release/net10.0/${{ matrix.rid }}/native/officecli.so"
+            "src/officecli/bin/Release/net10.0/${{ matrix.rid }}/native/libofficecli.so"
+          )
+          
+          FOUND=""
+          for file in "${CANDIDATES[@]}"; do
+            if [ -f "$file" ]; then
+              FOUND="$file"
+              break
+            fi
+          done
+          
+          # 如果在候选列表中找不到，则进行广度搜索（寻找 *.so）
+          if [ -z "$FOUND" ]; then
+            FOUND=$(find publish src/officecli/bin -type f -name "*officecli*.so" | head -n 1)
+          fi
+          
+          if [ -n "$FOUND" ] && [ -f "$FOUND" ]; then
+            echo "Found compiled Android binary at: $FOUND"
+            mkdir -p publish
+            mv "$FOUND" "publish/$TARGET_NAME"
+            echo "Successfully moved and renamed to: publish/$TARGET_NAME"
           else
-            mv publish/officecli publish/${{ matrix.name }}
+            echo "Error: Could not find compiled Android binary!"
+            echo "=== Listing directory contents for diagnostics ==="
+            find . -maxdepth 5 -name "*officecli*"
+            exit 1
           fi
 
       - name: Upload artifact

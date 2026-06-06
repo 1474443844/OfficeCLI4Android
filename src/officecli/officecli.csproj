@@ -58,8 +58,18 @@
     <PublishAot>true</PublishAot>
     <TargetPlatformIdentifier>android</TargetPlatformIdentifier>
     <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
-    <!-- 禁用 Android SDK 自动引入的全局命名空间（如 Android.Widget），避免与 OpenXml 的 TableRow 冲突 -->
-    <DisableAndroidImplicitUsings>true</DisableAndroidImplicitUsings>
+    <!-- 1. 禁用 Android SDK 自动生成隐式 Using 的行为 -->
+    <AndroidGenerateImplicitUsings>false</AndroidGenerateImplicitUsings>
   </PropertyGroup>
+
+  <!-- 2. 显式移除 Android 所有可能冲突的隐式 Using 引用（双重保险） -->
+  <ItemGroup Condition="$([System.String]::Copy('$(RuntimeIdentifier)').StartsWith('android-'))">
+    <Using Remove="Android.App" />
+    <Using Remove="Android.Widget" />
+    <Using Remove="Android.OS" />
+    <Using Remove="Android.Views" />
+    <Using Remove="Android.Content" />
+    <Using Remove="Android.Runtime" />
+  </ItemGroup>
 
 </Project>

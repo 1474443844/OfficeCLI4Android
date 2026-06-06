@@ -58,6 +58,8 @@
     <PublishAot>true</PublishAot>
     <TargetPlatformIdentifier>android</TargetPlatformIdentifier>
     <SupportedOSPlatformVersion>21</SupportedOSPlatformVersion>
+    <!-- 禁用 Android SDK 自动引入的全局命名空间（如 Android.Widget），避免与 OpenXml 的 TableRow 冲突 -->
+    <DisableAndroidImplicitUsings>true</DisableAndroidImplicitUsings>
   </PropertyGroup>
 
 </Project>
